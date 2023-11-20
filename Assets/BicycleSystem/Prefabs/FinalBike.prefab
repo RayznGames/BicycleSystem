@@ -1404,10 +1404,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handle: {fileID: 3052604780477020903}
   COG: {x: 0, y: -0.1, z: 0}
-  motorForce: 0
+  motorForce: 23
   brakeForce: 55
   currentSteeringAngle: 0
-  speedSteerControlTime: 0
+  speedSteerControlTime: 0.0756
   maxSteeringAngle: 30
   turnSmoothing: 0.05
   maxLayingAngle: 45
