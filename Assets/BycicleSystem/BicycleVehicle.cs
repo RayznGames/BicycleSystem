@@ -5,7 +5,7 @@ using UnityEngine;
 public class BicycleVehicle : MonoBehaviour
 {
 	float horizontalInput;
-	float vereticallInput;
+	float verticalInput;
 
 	public Transform handle;
 	bool braking;
@@ -13,35 +13,32 @@ public class BicycleVehicle : MonoBehaviour
 
 	public Vector3 COG;
 
-	[SerializeField] float motorforce;
+	[SerializeField] float motorForce;
 	[SerializeField] float brakeForce;
-	float currentbrakeForce;
+	float currentBrakeForce;
 
 	float steeringAngle;
 	[SerializeField] float currentSteeringAngle;
-	[Range(0f, 0.1f)] [SerializeField] float speedteercontrolTime;
+	[Range(0f, 0.1f)] [SerializeField] float speedSteerControlTime;
 	[SerializeField] float maxSteeringAngle;
 	[Range(0.000001f, 1)] [SerializeField] float turnSmoothing;
 
-	[SerializeField]float maxlayingAngle = 45f;
-	public float targetlayingAngle;
-	[Range(-40, 40)]public float layingammount;
+	[SerializeField]float maxLayingAngle = 45f;
+	public float targetLayingAngle;
+	[Range(-40, 40)]public float layingAmount;
 	[Range(0.000001f, 1 )] [SerializeField] float leanSmoothing;
 
 	[SerializeField] WheelCollider frontWheel;
 	[SerializeField] WheelCollider backWheel;
 
-	[SerializeField] Transform frontWheeltransform;
-	[SerializeField] Transform backWheeltransform;
+	[SerializeField] Transform frontWheelTransform;
+	[SerializeField] Transform backWheelTransform;
 
-	[SerializeField] TrailRenderer fronttrail;
-	[SerializeField] TrailRenderer rearttrail;
-
-	public bool frontGrounded;
-	public bool rearGrounded;
+	[SerializeField] TrailRenderer frontTrail;
+	[SerializeField] TrailRenderer rearTrail;
 
 	// Start is called before the first frame update
-	void Start()
+void Start()
 	{
 		StopEmitTrail();
 		rb = GetComponent<Rigidbody>();		
@@ -54,167 +51,125 @@ public class BicycleVehicle : MonoBehaviour
 		HandleEngine();
 		HandleSteering();
 		UpdateWheels();
-		UpdateHandle();
+		UpdateHandles();
 		LayOnTurn();
-		DownPresureOnSpeed();
+		DownPressureOnSpeed();
 		EmitTrail();
 	}
 
 	public void GetInput()
 	{
 		horizontalInput = Input.GetAxis("Horizontal");
-		vereticallInput = Input.GetAxis("Vertical");
+		verticalInput = Input.GetAxis("Vertical");
 		braking = Input.GetKey(KeyCode.Space);
 	}
 
 	public void HandleEngine()
 	{
-		backWheel.motorTorque = vereticallInput * motorforce;
-		currentbrakeForce = braking ? brakeForce : 0f;
-		if (braking)
-		{
-			ApplyBraking();
-		}
-		else
-		{
-			ReleaseBrakibg();
-		}
+		backWheel.motorTorque = verticalInput * motorForce;
+		currentBrakeForce = braking ? brakeForce : 0f;
+		//If we are not braking, ApplyBreaking applies a brakeForce of 0, so no conditional is needed
+		ApplyBraking();
 	}
 
-	public void DownPresureOnSpeed()
+	//Applies downforce, to keep the bike from bouncing off the ground over small bumps.
+	public void DownPressureOnSpeed()
 	{
 		Vector3 downforce = Vector3.down; 
-		float downpressure;
+		float downPressure;
 		if (rb.velocity.magnitude > 5)
 		{
-			downpressure = rb.velocity.magnitude;
-			rb.AddForce(downforce * downpressure, ForceMode.Force);
+			downPressure = rb.velocity.magnitude;
+			rb.AddForce(downforce * downPressure, ForceMode.Force);
 		}
-
 	}
 
 	public void ApplyBraking()
 	{
-		//frontWheel.brakeTorque = currentbrakeForce/2;
-		frontWheel.brakeTorque = currentbrakeForce;
-		backWheel.brakeTorque = currentbrakeForce;
-	}
-	public void ReleaseBrakibg()
-	{
-		frontWheel.brakeTorque = 0;
-		backWheel.brakeTorque = 0;
+		frontWheel.brakeTorque = currentBrakeForce;
+		backWheel.brakeTorque = currentBrakeForce;
 	}
 
-	public void SpeedSteerinReductor() 
+	//This function caps the maximum angle you can turn the front wheel.
+	//It used to step up and down with speed, now it uses an exponential decay function.
+	public void SpeedSteeringReductor() 
 	{
-		if (rb.velocity.magnitude < 5 ) //We set the limiting factor for the steering thus allowing how much steer we give to the player in relation to the speed
-		{			
-			maxSteeringAngle = Mathf.LerpAngle(maxSteeringAngle, 50, speedteercontrolTime);
-		}
-		if (rb.velocity.magnitude > 5 && rb.velocity.magnitude < 10 )
-		{			
-			maxSteeringAngle = Mathf.LerpAngle(maxSteeringAngle, 30, speedteercontrolTime);
-		}
-		if (rb.velocity.magnitude > 10 && rb.velocity.magnitude < 15 )
-		{			
-			maxSteeringAngle = Mathf.LerpAngle(maxSteeringAngle, 15, speedteercontrolTime);
-		}
-		if (rb.velocity.magnitude > 15 && rb.velocity.magnitude < 20 )
-		{			
-			maxSteeringAngle = Mathf.LerpAngle(maxSteeringAngle,  10, speedteercontrolTime);
-		}
-		if (rb.velocity.magnitude > 20)
-		{			
-			maxSteeringAngle = Mathf.LerpAngle(maxSteeringAngle,  5, speedteercontrolTime);
-		}			
+		maxSteeringAngle = Mathf.LerpAngle(
+			maxSteeringAngle, 
+			//These two magic numbers were derived by doing a linear regression (on constants from the 20 lines that this replaced).
+			Mathf.Clamp(66.614f * Mathf.Pow(0.893982f, rb.velocity.magnitude), 5, 50), 
+			speedSteerControlTime
+		);			
 	}
 
 	public void HandleSteering()
 	{
-		SpeedSteerinReductor();
+		SpeedSteeringReductor();
 
 		currentSteeringAngle = Mathf.Lerp(currentSteeringAngle, maxSteeringAngle * horizontalInput, turnSmoothing);
 		frontWheel.steerAngle = currentSteeringAngle;
 
 		//We set the target laying angle to the + or - input value of our steering 
 		//We invert our input for rotating in the ocrrect axis
-		targetlayingAngle = maxlayingAngle * -horizontalInput;		
+		targetLayingAngle = maxLayingAngle * -horizontalInput;		
 	}
-
 	private void LayOnTurn()
 	{
 		Vector3 currentRot = transform.rotation.eulerAngles;
 
+		//Case: not moving much
 		if (rb.velocity.magnitude < 1)
 		{
-			layingammount = Mathf.LerpAngle(layingammount, 0f, 0.05f);		
-			transform.rotation = Quaternion.Euler(currentRot.x, currentRot.y, layingammount);
+			layingAmount = Mathf.LerpAngle(layingAmount, 0f, 0.05f);		
+			transform.rotation = Quaternion.Euler(currentRot.x, currentRot.y, layingAmount);
 			return;
 		}
-
-		if (currentSteeringAngle < 0.5f && currentSteeringAngle > -0.5  ) //We're stright
+		//Case: Not steering or steering a tiny amount
+		if (currentSteeringAngle < 0.5f && currentSteeringAngle > -0.5  )
 		{
-			layingammount =  Mathf.LerpAngle(layingammount, 0f, leanSmoothing);			
+			layingAmount =  Mathf.LerpAngle(layingAmount, 0f, leanSmoothing);			
 		}
-		else //We're turning
+		//Case: Steering
+		else
 		{
-			layingammount = Mathf.LerpAngle(layingammount, targetlayingAngle, leanSmoothing );		
+			layingAmount = Mathf.LerpAngle(layingAmount, targetLayingAngle, leanSmoothing );		
 			rb.centerOfMass = new Vector3(rb.centerOfMass.x, COG.y, rb.centerOfMass.z);
 		}
 
-		transform.rotation = Quaternion.Euler(currentRot.x, currentRot.y, layingammount);
+		transform.rotation = Quaternion.Euler(currentRot.x, currentRot.y, layingAmount);
 	}
 
 	public void UpdateWheels()
 	{
-		UpdateSingleWheel(frontWheel, frontWheeltransform);
-		UpdateSingleWheel(backWheel, backWheeltransform);
+		UpdateSingleWheel(frontWheel, frontWheelTransform);
+		UpdateSingleWheel(backWheel, backWheelTransform);
 	}
-	public void UpdateHandle()
+
+	public void UpdateHandles()
 	{		
 		Quaternion sethandleRot;
-		sethandleRot = frontWheeltransform.rotation;		
-		handle.localRotation = Quaternion.Euler(handle.localRotation.eulerAngles.x, currentSteeringAngle, handle.localRotation.eulerAngles.z);
+		sethandleRot = frontWheelTransform.rotation;		
+		handle.localEulerAngles = new Vector3(handle.localEulerAngles.x, currentSteeringAngle, handle.localEulerAngles.z);
 	}
 
 	private void EmitTrail() 
 	{	
-		frontGrounded = frontWheel.GetGroundHit(out WheelHit Fhit);
-		rearGrounded = backWheel.GetGroundHit(out WheelHit Rhit);
-
-		if (frontGrounded)
-		{
-			fronttrail.emitting = true;
-		}
-		else
-		{
-			fronttrail.emitting = false;
-		}
-
-		if (rearGrounded)
-		{
-			rearttrail.emitting = true;			
-		}
-		else
-		{
-			rearttrail.emitting = false;
-		}
-
-		//fronttrail.emitting = true;
-		//rearttrail.emitting = true;
+		frontTrail.emitting = frontWheel.GetGroundHit(out WheelHit Fhit);
+		rearTrail.emitting = backWheel.GetGroundHit(out WheelHit Rhit);
 	}
+
 	private void StopEmitTrail() 
 	{
-		fronttrail.emitting = false;
-		rearttrail.emitting = false;
+		frontTrail.emitting = false;
+		rearTrail.emitting = false;
 	}
 
 	private void UpdateSingleWheel(WheelCollider wheelCollider, Transform wheelTransform)
 	{
-		Vector3 pos;
-		Quaternion rot;
-		wheelCollider.GetWorldPose(out pos, out rot);
-		wheelTransform.rotation = rot;
-		wheelTransform.position = pos;
+		Vector3 position;
+		Quaternion rotation;
+		wheelCollider.GetWorldPose(out position, out rotation);
+		wheelTransform.rotation = rotation;
+		wheelTransform.position = position;
 	}
 }
