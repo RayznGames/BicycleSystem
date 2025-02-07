@@ -4,7 +4,7 @@ using System.Drawing;
 
 public class BicycleVehicle : MonoBehaviour
 {
-	//debugInfo	
+	//Params/Inpus	
 	float horizontalInput;
 	float verticalInput;
 	bool braking;
@@ -71,11 +71,11 @@ public class BicycleVehicle : MonoBehaviour
 		backWheel.ConfigureVehicleSubsteps(5, 12, 15);
 		rb = GetComponent<Rigidbody>();		
 	}
+	// Update is called once per frame
 	private void Update()
 	{
 		GetInput();		
 	}
-	// Update is called once per frame
 	void FixedUpdate()
 	{
 		HandleEngine();
@@ -235,17 +235,5 @@ public class BicycleInspector :  Editor
 		GUILayout.Label(title);
 	}
 }
-/*
-		GUI.skin.label.alignment = TextAnchor.UpperRight;
-		GUI.skin.label.fontSize = 12;
-		GUI.skin.label.fontStyle = FontStyle.BoldAndItalic;
-		GUILayout.Label("Love from RayznGames");
-
-		EditorGUILayout.PrefixLabel("Text");
-		myScript.someString = EditorGUILayout.TextField(myScript.someString);
-		EditorGUILayout.PrefixLabel("Number");
-		myScript.someNumber = EditorGUILayout.IntSlider(myScript.someNumber, 0, 10);
-		EditorGUI.indentLevel--;
- */
 
 #endregion
